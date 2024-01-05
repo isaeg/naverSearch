@@ -12,17 +12,39 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver import ActionChains
 from datetime import datetime, timedelta
 from tkinter import *
+import requests
 
 
 root = Tk()
 root.title("네이버 검색순위")
-root.geometry("320x180") # 가로 * 세로
+root.minsize(width=400, height=100)
+root.maxsize(width=400, height=150)
 
+OWNER = 'isaeg'
+REPO = 'naverSearch'
+API_SERVER_URL = f"https://api.github.com/repos/{OWNER}/{REPO}"
 
-
+MY_API_KEY = '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'  # 노출되면 안됨, 각자의 방법으로 보호하자.
+res = requests.get(f"{API_SERVER_URL}/releases/latest", auth=(OWNER, MY_API_KEY))  #
+if res.status_code != 200:
+    print(datetime.now().strftime("%Y.%m.%d %H:%M:%S"), "업데이트 체크 실패")
+# print(res.json())
+rs  =res.json()
+new_version = str(rs["assets"][0]["id"])
+with open("./version", "r") as f:
+    now_version = f.read()
 
 # progress.stop()
     # e.delete(0, END)
+
+
+def versionCheck(now,new):
+    if now != new:
+        print("====================")
+        print("업데이트 가능 버전을 발견했습니다.")
+        return True
+    else:
+        return False
 
 def scroll(driver):
     while True:
@@ -41,6 +63,15 @@ def scroll(driver):
             return True
         except:
             return False
+
+
+def check_elements(nums):
+    n = len(nums)
+    for i in range(n - 1):
+        if nums[i] >= nums[i + 1]:
+            return True
+    return False
+
 
 def start(key,detail):
     options = webdriver.ChromeOptions()
@@ -78,7 +109,7 @@ def start(key,detail):
 
     '''검색 이 후 더보기 찾기 '''
     scrollFlag = scroll(driver)
-    
+
     if not scrollFlag:
         return "모바일 웹 - 더 보기가 막혔습니다.. 키워드 변경 / 잠시 후 해주세요 "
     # while True:
@@ -104,24 +135,32 @@ def start(key,detail):
     links = []
     adLinkArr =[]
     realLinks = []
+
+    maxLink = []
     while True:
         # placeSelector = '#_list_scroll_container > div > div > div:nth-child(2) > ul'
-        cnt = 0 ;
+        cnt = 0
+        linkCnt = 0
         placeSelector = 'eDFz9'
         WebDriverWait(driver, 10).until(EC.presence_of_element_located(
             (By.CLASS_NAME, placeSelector)
         ))
         placeInput = driver.find_element(By.CLASS_NAME, placeSelector)
         liInput = placeInput.find_elements(By.TAG_NAME, 'li')
+        print('li 링크 갯수 확인합시다' , len(liInput))
+        linkCnt += 1
+        maxLink.append(len(liInput))
+        print('max ???' , maxLink)
         # 광고는 없애버립시다잉
         for i in range(len(liInput)):
             if not '광고' in liInput[i].text:
                 realLinks.append(liInput[i])
-        print('li 링크 갯수 확인합시다' , len(realLinks))
         if len(realLinks) > 2000:
             return f'{len(realLinks)} 순위 밖입니다'
         action = ActionChains(driver)
         action.move_to_element(realLinks[len(realLinks)-1]).perform()
+        ## 스크롤 시 더 이상 있는지 없는지 체크
+
 
         # driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.PAGE_DOWN)
         for i in range(len(realLinks)):
@@ -149,6 +188,9 @@ def start(key,detail):
         cnt += 1
         if detailName in links:
             break
+        result = check_elements(maxLink)
+        if result:
+            break
 
     if detailName in links:
         index = links.index(detailName)
@@ -156,6 +198,7 @@ def start(key,detail):
         return f"'{detailName}'은 {index + 1} 순위입니다."
     else:
         return "등록이 안되있네요.."
+
 
 
 
@@ -212,12 +255,22 @@ detailName.insert(END, "상호명 입력하세요")
 
 label3 = Label(root, text="순위:")
 label3.grid(row=3, column=0)
-
+now = now_version
+new = new_version
+checkFlag = versionCheck(now,new)
+if checkFlag:
+    update_label4 = Label(root, text="업데이트 버전이 존재합니다")
+    update_label4.grid(row=4, column=0, pady=10)  #
+else:
+    update_label4 = Label(root, text="최신버전입니다.")
+    update_label4.grid(row=4, column=0, pady=10)  #
 btn = Button(root, text="검색", command=btncmd ,width=20)
 btn.grid()
 
 label.bind("<Tab>", on_tab)
 label2.bind("<Tab>", on_tab)
 label3.bind("<Tab>", on_tab)
+
+
 
 root.mainloop()
